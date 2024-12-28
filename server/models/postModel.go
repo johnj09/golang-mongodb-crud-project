@@ -15,6 +15,6 @@ type Post struct {
 	UpdatedAt		int64				`json:"updated_at,omitempty" bson:"updated_at,omitempty"`
 }
 
-type PostUpdateRequest struct {
-	UpdatedContent	string	`json:"updated_content"`
+type PostEditRequest struct {
+	NewContent	string	`json:"new_content"`
 }

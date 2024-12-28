@@ -22,6 +22,7 @@ func main() {
 
 	routes.UserRoute(app)
 	routes.PostRoute(app)
+	routes.CommentRoute(app)
 	
 	port := os.Getenv("PORT")
 	if port == "" {
