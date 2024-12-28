@@ -8,18 +8,7 @@ import (
 	"github.com/johnj09/golang-mongodb-crud-project/configs"
 	"github.com/johnj09/golang-mongodb-crud-project/routes"
 	"github.com/joho/godotenv"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
 )
-
-type User struct {
-	ID primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
-	Username string `json:"username"`
-	Email string `json:"email"`
-	Password string `json:"password"`
-}
-
-var collection *mongo.Collection
 
 func main() {
 	err := godotenv.Load(".env")
@@ -32,6 +21,7 @@ func main() {
 	configs.ConnectDB()
 
 	routes.UserRoute(app)
+	routes.PostRoute(app)
 	
 	port := os.Getenv("PORT")
 	if port == "" {

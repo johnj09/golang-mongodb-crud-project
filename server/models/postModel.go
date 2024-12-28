@@ -1,16 +1,20 @@
 package models
 
 import (
-	"time"
-
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type Post struct {
-	ID 			primitive.ObjectID 	`json:"id,omitempty" bson:"_id,omitempty"`
-	Author 		primitive.ObjectID 	`json:"author"`
-	Title 		string				`json:"title"`
-	Content		string				`json:"content"`
-	CreatedAt	time.Time			`json:"created_at"`
-	UpdatedAt	time.Time			`json:"updated_at"`
+	ID 				primitive.ObjectID 	`json:"id,omitempty" bson:"_id,omitempty"`
+	UserID 			primitive.ObjectID	`json:"user_id" bson:"user_id"`
+	Title 			string				`json:"title" bson:"title"`
+	Content			string				`json:"content" bson:"content"`
+	NumOfLikes		uint32				`json:"num_of_likes" bson:"num_of_likes"`
+	NumOfComments	uint32				`json:"num_of_comments" bson:"num_of_comments"`
+	CreatedAt		int64				`json:"created_at,omitempty" bson:"created_at,omitempty"`
+	UpdatedAt		int64				`json:"updated_at,omitempty" bson:"updated_at,omitempty"`
+}
+
+type PostUpdateRequest struct {
+	UpdatedContent	string	`json:"updated_content"`
 }

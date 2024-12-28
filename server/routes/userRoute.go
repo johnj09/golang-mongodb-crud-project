@@ -6,7 +6,8 @@ import (
 )
 
 func UserRoute(app *fiber.App) {
-	app.Post("/api/user", controllers.CreateUser)
+	app.Post("/api/register", controllers.CreateUser)
+	app.Post("/api/login", controllers.LoginUser)
 	app.Get("/api/user/:id", controllers.GetUser)
 	app.Delete("/api/user/:id", controllers.DeleteUser)
 }

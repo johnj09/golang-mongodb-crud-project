@@ -10,11 +10,15 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func ConnectDB() *mongo.Client {
+var dbConnected = false
+var client *mongo.Client
+
+func ConnectDB() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Second)
 	defer cancel()
 	clientOptions := options.Client().ApplyURI(EnvMongoURI())
-	client, err := mongo.Connect(ctx, clientOptions)
+	var err error
+	client, err = mongo.Connect(ctx, clientOptions)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -25,13 +29,9 @@ func ConnectDB() *mongo.Client {
 	}
 
 	fmt.Println("Connected to MongoDB Atlas")
-
-	return client
 }
 
-var DB *mongo.Client = ConnectDB()
-
-func GetCollection(client *mongo.Client, collectionName string) *mongo.Collection {
-	collection := client.Database("blog_db").Collection(collectionName)
-	return collection
+func GetCollection(collectionName string) *mongo.Collection {
+	if !dbConnected {ConnectDB()}
+	return client.Database(EnvDBName()).Collection(collectionName)
 }
