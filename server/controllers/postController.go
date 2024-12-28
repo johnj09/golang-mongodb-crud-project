@@ -110,10 +110,25 @@ func UpdatePostContent(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Second)
 	defer cancel()
 
+	// Convert postId to ObjectID
 	postId,_ := primitive.ObjectIDFromHex(c.Params("id"))
 	updatedContent := new(models.PostUpdateRequest)
 	if err := c.BodyParser(updatedContent); err != nil {
 		return c.Status(http.StatusBadRequest).JSON(responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: &fiber.Map{"data": err.Error()}})
+	}
+
+	// Check user rights
+	userId, _ := primitive.ObjectIDFromHex(c.Locals("userId").(string))
+	var post models.Post
+	err := postCollection.FindOne(ctx, bson.M{"_id": postId}).Decode(&post)
+	if err == mongo.ErrNoDocuments {
+		return c.Status(http.StatusBadRequest).JSON(responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: &fiber.Map{"data": err.Error()}})
+	} else if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: &fiber.Map{"data": err.Error()}})
+	}
+
+	if post.UserID != userId {
+		return c.Status(http.StatusUnauthorized).JSON(responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: &fiber.Map{"data": "Unauthorized."}})
 	}
 
 	filter := bson.M{"_id": postId}
