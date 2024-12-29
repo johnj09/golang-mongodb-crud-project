@@ -15,7 +15,7 @@ func Authenticate(c *fiber.Ctx) error {
 	// Get the cookie from the request
 	tokenString := c.Cookies(configs.AuthCookie)
 	if tokenString == "" {
-		return c.Status(http.StatusUnauthorized).JSON(responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: &fiber.Map{"data": "Unauthorized"}})
+		return responses.NewUserResponse(c, http.StatusUnauthorized, responses.Error, "Unauthorized.")	
 	}
 
 	// Decode and validate token
@@ -31,17 +31,17 @@ func Authenticate(c *fiber.Ctx) error {
 		// Check the expiration
 		exp, ok := claims["exp"].(float64)
 		if !ok || float64(time.Now().Unix()) > exp {
-			return c.Status(http.StatusUnauthorized).JSON(responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: &fiber.Map{"data": "Token expired."}})
+			return responses.NewUserResponse(c, http.StatusUnauthorized, responses.Error, "Token expired.")
 		}
 
 		userId, ok := claims["userId"].(string)
 		if !ok {
-			return c.Status(http.StatusUnauthorized).JSON(responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: &fiber.Map{"data": "Invalid token payload."}})
+			return responses.NewUserResponse(c, http.StatusUnauthorized, responses.Error, "Invalid token payload.")
 		}
 
 		c.Locals("userId", userId)
 	} else {
-		return c.Status(http.StatusUnauthorized).JSON(responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: &fiber.Map{"data": "Unauthorized."}})
+		return responses.NewUserResponse(c, http.StatusUnauthorized, responses.Error, "Unauthorized.")
 	}
 
 	return c.Next()	

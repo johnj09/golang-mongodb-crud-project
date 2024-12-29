@@ -21,18 +21,18 @@ var postCollection = configs.GetCollection("posts")
 func CreatePost(c *fiber.Ctx) error {
 	userId, err := primitive.ObjectIDFromHex(c.Locals("userId").(string))
 	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: &fiber.Map{"data": err.Error()}})
+		return responses.NewUserResponse(c, http.StatusInternalServerError, responses.Error, err.Error())
 	}
 
 	// Retrieve request body
 	post := new(models.Post)
 	if err := c.BodyParser(post); err != nil {
-		return c.Status(http.StatusBadRequest).JSON(responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: &fiber.Map{"data": err.Error()}})
+		return responses.NewUserResponse(c, http.StatusBadRequest, responses.Error, err.Error())
 	}
 
 	// Check for valid title and content
 	if post.Title == "" || post.Content == "" {
-		return c.Status(http.StatusBadRequest).JSON(responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: &fiber.Map{"data": "Post title and content must not be empty."}})
+		return responses.NewUserResponse(c, http.StatusBadRequest, responses.Error, "Post title and content must not be empty.")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Second)
@@ -63,10 +63,10 @@ func CreatePost(c *fiber.Ctx) error {
 	// Insert new post into database
 	result, err := postCollection.InsertOne(ctx, newPost)
 	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: &fiber.Map{"data": err.Error()}})
+		return responses.NewUserResponse(c, http.StatusInternalServerError, responses.Error, err.Error())
 	}
 
-	return c.Status(http.StatusCreated).JSON(responses.UserResponse{Status: http.StatusCreated, Message: "success", Data: &fiber.Map{"data": result}})
+	return responses.NewUserResponse(c, http.StatusCreated, responses.Success, result)
 }
 
 func GetPost(c *fiber.Ctx) error {
@@ -79,10 +79,10 @@ func GetPost(c *fiber.Ctx) error {
 
 	err := postCollection.FindOne(ctx, bson.M{"_id": objId}).Decode(&post)
 	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: &fiber.Map{"data": err.Error()}})
+		return responses.NewUserResponse(c, http.StatusInternalServerError, responses.Error, err.Error())
 	}
 
-	return c.Status(http.StatusOK).JSON(responses.UserResponse{Status: http.StatusOK, Message: "success", Data: &fiber.Map{"data": post}})
+	return responses.NewUserResponse(c, http.StatusOK, responses.Success, post)
 }
 
 func GetNextTenPosts(c *fiber.Ctx) error {
@@ -94,16 +94,16 @@ func GetNextTenPosts(c *fiber.Ctx) error {
 
 	cursor, err := postCollection.Find(ctx, bson.M{}, opts)
 	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: &fiber.Map{"data": err.Error()}})
+		return responses.NewUserResponse(c, http.StatusInternalServerError, responses.Error, err.Error())
 	}
 	defer cursor.Close(ctx)
 
 	var posts []models.Post
 	if err := cursor.All(ctx, &posts); err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: &fiber.Map{"data": err.Error()}})
+		return responses.NewUserResponse(c, http.StatusInternalServerError, responses.Error, err.Error())
 	}
 
-	return c.Status(http.StatusOK).JSON(responses.UserResponse{Status: http.StatusOK, Message: "success", Data: &fiber.Map{"data": posts}})
+	return responses.NewUserResponse(c, http.StatusOK, responses.Success, posts)
 }
 
 func EditPost(c *fiber.Ctx) error {
@@ -114,7 +114,7 @@ func EditPost(c *fiber.Ctx) error {
 	postId,_ := primitive.ObjectIDFromHex(c.Params("pid"))
 	editRequest := new(models.PostEditRequest)
 	if err := c.BodyParser(editRequest); err != nil {
-		return c.Status(http.StatusBadRequest).JSON(responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: &fiber.Map{"data": err.Error()}})
+		return responses.NewUserResponse(c, http.StatusBadRequest, responses.Error, err.Error())
 	}
 
 	// Check user rights
@@ -122,13 +122,13 @@ func EditPost(c *fiber.Ctx) error {
 	var post models.Post
 	err := postCollection.FindOne(ctx, bson.M{"_id": postId}).Decode(&post)
 	if err == mongo.ErrNoDocuments {
-		return c.Status(http.StatusBadRequest).JSON(responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: &fiber.Map{"data": err.Error()}})
+		return responses.NewUserResponse(c, http.StatusBadRequest, responses.Error, err.Error())
 	} else if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: &fiber.Map{"data": err.Error()}})
+		return responses.NewUserResponse(c, http.StatusInternalServerError, responses.Error, err.Error())
 	}
 
 	if post.UserID != userId {
-		return c.Status(http.StatusUnauthorized).JSON(responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: &fiber.Map{"data": "Unauthorized."}})
+		return responses.NewUserResponse(c, http.StatusUnauthorized, responses.Error, "Unauthorized.")
 	}
 
 	// Update post record
@@ -142,14 +142,14 @@ func EditPost(c *fiber.Ctx) error {
 
 	result, err :=  postCollection.UpdateOne(ctx, filter, update)
 	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: &fiber.Map{"data": "Failed to update post."}})
+		return responses.NewUserResponse(c, http.StatusInternalServerError, responses.Error, "Failed to update post.")
 	}
 
 	if result.MatchedCount == 0 {
-		return c.Status(http.StatusBadRequest).JSON(responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: &fiber.Map{"data": "No post found with given post ID."}})
+		return responses.NewUserResponse(c, http.StatusInternalServerError, responses.Error, "No post found with given post ID.")
 	}
 
-	return c.Status(http.StatusOK).JSON(responses.UserResponse{Status: http.StatusOK, Message: "success", Data: &fiber.Map{"data": result}})
+	return responses.NewUserResponse(c, http.StatusOK, responses.Success, result)
 }
 
 func DeletePost(c *fiber.Ctx) error {
@@ -164,26 +164,26 @@ func DeletePost(c *fiber.Ctx) error {
 	var post models.Post
 	err := postCollection.FindOne(ctx, bson.M{"_id": postId}).Decode(&post)
 	if err == mongo.ErrNoDocuments {
-		return c.Status(http.StatusBadRequest).JSON(responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: &fiber.Map{"data": err.Error()}})
+		return responses.NewUserResponse(c, http.StatusBadRequest, responses.Error, err.Error())
 	} else if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: &fiber.Map{"data": err.Error()}})
+		return responses.NewUserResponse(c, http.StatusInternalServerError, responses.Error, err.Error())
 	}
 
 	if post.UserID != userId {
-		return c.Status(http.StatusUnauthorized).JSON(responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: &fiber.Map{"data": "Unauthorized."}})
+		return responses.NewUserResponse(c, http.StatusUnauthorized, responses.Error, "Unauthorized.")
 	}
 
 	// Delete post record
 	_, err = postCollection.DeleteOne(ctx, bson.M{"_id": postId})
 	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: &fiber.Map{"data": err.Error()}})
+		return responses.NewUserResponse(c, http.StatusInternalServerError, responses.Error, err.Error())
 	}
 
 	// Delete all comments from that post
 	_, err = commentCollection.DeleteMany(ctx, bson.M{"post_id": postId})
 	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: &fiber.Map{"data": err.Error()}})
+		return responses.NewUserResponse(c, http.StatusInternalServerError, responses.Error, err.Error())
 	}
 
-	return c.Status(http.StatusOK).JSON(responses.UserResponse{Status: http.StatusOK, Message: "success", Data: &fiber.Map{"data": "Successfully deleted post."}})
+	return responses.NewUserResponse(c, http.StatusOK, responses.Success, "Successfully deleted post.")
 }

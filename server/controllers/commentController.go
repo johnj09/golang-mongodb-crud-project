@@ -20,22 +20,22 @@ var commentCollection = configs.GetCollection("comments")
 func CreateComment(c *fiber.Ctx) error {
 	userId, err := primitive.ObjectIDFromHex(c.Locals("userId").(string))
 	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: &fiber.Map{"data": err.Error()}})
+		return responses.NewUserResponse(c, http.StatusInternalServerError, responses.Error, err.Error())
 	}
 
 	postId, err := primitive.ObjectIDFromHex(c.Params("pid"))
 	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: &fiber.Map{"data": err.Error()}})
+		return responses.NewUserResponse(c, http.StatusInternalServerError, responses.Error, err.Error())
 	}
 
 	// Retrieve request body
 	comment := new(models.Comment)
 	if err := c.BodyParser(comment); err != nil {
-		return c.Status(http.StatusBadRequest).JSON(responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: &fiber.Map{"data": err.Error()}})
+		return responses.NewUserResponse(c, http.StatusBadRequest, responses.Error, err.Error())
 	}
 
 	if strings.TrimSpace(comment.Content) == "" {
-		return c.Status(http.StatusBadRequest).JSON(responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: &fiber.Map{"data": "Comment can not be empty."}})
+		return responses.NewUserResponse(c, http.StatusBadRequest, responses.Error, "Comment can not be empty.")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Second)
@@ -64,7 +64,7 @@ func CreateComment(c *fiber.Ctx) error {
 	// Insert new comment into database
 	result, err := commentCollection.InsertOne(ctx, newComment)
 	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: &fiber.Map{"data": err.Error()}})
+		return responses.NewUserResponse(c, http.StatusInternalServerError, responses.Error, err.Error())
 	}
 
 	// Increment num of comments by 1 in corresponding post document
@@ -73,16 +73,16 @@ func CreateComment(c *fiber.Ctx) error {
 	}
 	_, err = postCollection.UpdateOne(ctx, bson.M{"_id": postId}, increment)
 	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: &fiber.Map{"data": err.Error()}})
+		return responses.NewUserResponse(c, http.StatusInternalServerError, responses.Error, err.Error())
 	}
 
-	return c.Status(http.StatusCreated).JSON(responses.UserResponse{Status: http.StatusCreated, Message: "success", Data: &fiber.Map{"data": result}})
+	return responses.NewUserResponse(c, http.StatusCreated, responses.Success, result)
 }
 
 func GetAllComments(c *fiber.Ctx) error {
 	postId, err := primitive.ObjectIDFromHex(c.Params("pid"))
 	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: &fiber.Map{"data": err.Error()}})
+		return responses.NewUserResponse(c, http.StatusInternalServerError, responses.Error, err.Error())
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Second)
@@ -90,24 +90,16 @@ func GetAllComments(c *fiber.Ctx) error {
 
 	cursor, err := commentCollection.Find(ctx, bson.M{"post_id": postId})
 	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: &fiber.Map{"data": err.Error()}})
+		return responses.NewUserResponse(c, http.StatusInternalServerError, responses.Error, err.Error())
 	}
 	defer cursor.Close(ctx)
 
 	var comments []models.Comment
-	for cursor.Next(ctx) {
-		var comment models.Comment
-		if err := cursor.Decode(&comment); err != nil {
-			return c.Status(http.StatusInternalServerError).JSON(responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: &fiber.Map{"data": err.Error()}})
-		}
-		comments = append(comments, comment)
+	if err := cursor.All(ctx, &comments); err != nil {
+		return responses.NewUserResponse(c, http.StatusInternalServerError, responses.Error, err.Error())
 	}
 
-	if err := cursor.Err(); err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: &fiber.Map{"data": err.Error()}})
-	}
-
-	return c.Status(http.StatusCreated).JSON(responses.UserResponse{Status: http.StatusCreated, Message: "success", Data: &fiber.Map{"data": comments}})
+	return responses.NewUserResponse(c, http.StatusOK, responses.Success, comments)
 }
 
 func EditComment(c *fiber.Ctx) error {
@@ -118,7 +110,7 @@ func EditComment(c *fiber.Ctx) error {
 	commentId,_ := primitive.ObjectIDFromHex(c.Params("cid"))
 	editRequest := new(models.CommentEditRequest)
 	if err := c.BodyParser(editRequest); err != nil {
-		return c.Status(http.StatusBadRequest).JSON(responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: &fiber.Map{"data": err.Error()}})
+		return responses.NewUserResponse(c, http.StatusBadRequest, responses.Error, err.Error())
 	}
 
 	// Check user rights
@@ -126,13 +118,13 @@ func EditComment(c *fiber.Ctx) error {
 	var comment models.Comment
 	err := commentCollection.FindOne(ctx, bson.M{"_id": commentId}).Decode(&comment)
 	if err == mongo.ErrNoDocuments {
-		return c.Status(http.StatusBadRequest).JSON(responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: &fiber.Map{"data": err.Error()}})
+		return responses.NewUserResponse(c, http.StatusBadRequest, responses.Error, err.Error())
 	} else if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: &fiber.Map{"data": err.Error()}})
+		return responses.NewUserResponse(c, http.StatusInternalServerError, responses.Error, err.Error())
 	}
 
 	if comment.UserID != userId {
-		return c.Status(http.StatusUnauthorized).JSON(responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: &fiber.Map{"data": "Unauthorized."}})
+		return responses.NewUserResponse(c, http.StatusUnauthorized, responses.Error, "Unauthorized.")
 	}
 
 	// Update comment record
@@ -146,14 +138,14 @@ func EditComment(c *fiber.Ctx) error {
 
 	result, err :=  commentCollection.UpdateOne(ctx, filter, update)
 	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: &fiber.Map{"data": "Failed to update comment."}})
+		return responses.NewUserResponse(c, http.StatusInternalServerError, responses.Error, "Failed to update comment.")
 	}
 
 	if result.MatchedCount == 0 {
-		return c.Status(http.StatusBadRequest).JSON(responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: &fiber.Map{"data": "No post found with given comment ID."}})
+		return responses.NewUserResponse(c, http.StatusBadRequest, responses.Error, "No post found with given comment ID.")
 	}
 
-	return c.Status(http.StatusOK).JSON(responses.UserResponse{Status: http.StatusOK, Message: "success", Data: &fiber.Map{"data": result}})
+	return responses.NewUserResponse(c, http.StatusOK, responses.Success, result)
 }
 
 func DeleteComment(c *fiber.Ctx) error {
@@ -168,20 +160,20 @@ func DeleteComment(c *fiber.Ctx) error {
 	var comment models.Comment
 	err := commentCollection.FindOne(ctx, bson.M{"_id": commentId}).Decode(&comment)
 	if err == mongo.ErrNoDocuments {
-		return c.Status(http.StatusBadRequest).JSON(responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: &fiber.Map{"data": err.Error()}})
+		return responses.NewUserResponse(c, http.StatusBadRequest, responses.Error, err.Error())
 	} else if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: &fiber.Map{"data": err.Error()}})
+		return responses.NewUserResponse(c, http.StatusInternalServerError, responses.Error, err.Error())
 	}
 
 	if comment.UserID != userId {
-		return c.Status(http.StatusUnauthorized).JSON(responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: &fiber.Map{"data": "Unauthorized."}})
+		return responses.NewUserResponse(c, http.StatusUnauthorized, responses.Error, "Unauthorized.")
 	}
 
 	// Delete comment record
 	_, err = commentCollection.DeleteOne(ctx, bson.M{"_id": commentId})
 	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: &fiber.Map{"data": err.Error()}})
+		return responses.NewUserResponse(c, http.StatusInternalServerError, responses.Error, "Unauthorized.")
 	}
 
-	return c.Status(http.StatusOK).JSON(responses.UserResponse{Status: http.StatusOK, Message: "success", Data: &fiber.Map{"data": "Successfully deleted comment."}})
+	return responses.NewUserResponse(c, http.StatusOK, responses.Success, "Successfully deleted comment.")
 }
