@@ -22,5 +22,6 @@ func NewUserResponse[T any](c *fiber.Ctx, statusCode int, outcome int, data T) e
 	} else if outcome == Error {
 		strOutcome = "error"
 	}
+
 	return c.Status(statusCode).JSON(UserResponse{Status: statusCode, Outcome: strOutcome, Data: &fiber.Map{"data": data}})
 }

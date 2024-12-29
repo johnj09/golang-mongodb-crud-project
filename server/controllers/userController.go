@@ -31,6 +31,10 @@ func CreateUser(c *fiber.Ctx) error {
 		return responses.NewUserResponse(c, http.StatusBadRequest, responses.Error, err.Error())
 	}
 
+	if user.Email == "" || user.Username == "" || user.Password == "" {
+		return responses.NewUserResponse(c, http.StatusBadRequest, responses.Error, "Fields may not be empty.")
+	}
+
 	// Check for duplicate users
 	filter := bson.M{"$or": []bson.M{
 		{"email": user.Email},
@@ -124,7 +128,31 @@ func LoginUser(c *fiber.Ctx) error {
 		Secure: false,
 		HTTPOnly: true,
 	})
-	return responses.NewUserResponse(c, http.StatusOK, responses.Success, "Login Success.")
+
+	result := &fiber.Map{
+		"userId": user.ID,
+		"username": user.Username,
+	}
+
+	return responses.NewUserResponse(c, http.StatusOK, responses.Success, result)
+}
+
+func LogoutUser(c *fiber.Ctx) error {
+	c.Cookie(&fiber.Cookie{
+		Name: configs.AuthCookie,
+		Value: "",
+		Expires: time.Now().Add(-1 * time.Hour),
+	})
+	return responses.NewUserResponse(c, http.StatusOK, responses.Success, "Logout Success.")
+}
+
+func GetUserProfile(c *fiber.Ctx) error {
+	tokenString := c.Cookies(configs.AuthCookie)
+	token, _ := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		return []byte(configs.EnvSecretKey()), nil
+	})
+	claims := token.Claims.(jwt.MapClaims)
+	return responses.NewUserResponse(c, http.StatusOK, responses.Success, claims)
 }
 
 func GetUser(c *fiber.Ctx) error {
