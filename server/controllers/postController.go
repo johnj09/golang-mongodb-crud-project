@@ -61,12 +61,12 @@ func CreatePost(c *fiber.Ctx) error {
 	}
 
 	// Insert new post into database
-	result, err := postCollection.InsertOne(ctx, newPost)
+	_, err = postCollection.InsertOne(ctx, newPost)
 	if err != nil {
 		return responses.NewUserResponse(c, http.StatusInternalServerError, responses.Error, err.Error())
 	}
 
-	return responses.NewUserResponse(c, http.StatusCreated, responses.Success, result)
+	return responses.NewUserResponse(c, http.StatusCreated, responses.Success, "Post Created.")
 }
 
 func GetPost(c *fiber.Ctx) error {

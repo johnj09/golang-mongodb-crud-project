@@ -77,12 +77,12 @@ func CreateUser(c *fiber.Ctx) error {
 	}
 
 	// Insert new user into database
-	result, err := userCollection.InsertOne(ctx, newUser)
+	_, err = userCollection.InsertOne(ctx, newUser)
 	if err != nil {
 		return responses.NewUserResponse(c, http.StatusInternalServerError, responses.Error, err.Error())
 	}
 
-	return responses.NewUserResponse(c, http.StatusCreated, responses.Success, result)
+	return responses.NewUserResponse(c, http.StatusCreated, responses.Success, "User Created.")
 }
 
 func LoginUser(c *fiber.Ctx) error {

@@ -9,19 +9,18 @@ const (
 	Error = 1
 )
 
-type UserResponse struct {
-	Status  	int			`json:"status"`
-	Outcome 	string     	`json:"outcome"`
-	Data    	*fiber.Map 	`json:"data"`
+type UserResponse[T any] struct {
+	Message 	string     	`json:"message"`
+	Data    	T 			`json:"data"`
 }
 
-func NewUserResponse[T any](c *fiber.Ctx, statusCode int, outcome int, data T) error {
-	var strOutcome string
-	if outcome == Success {
-		strOutcome = "success"
-	} else if outcome == Error {
-		strOutcome = "error"
+func NewUserResponse[T any](c *fiber.Ctx, statusCode int, message int, data T) error {
+	var strMessage string
+	if message == Success {
+		strMessage = "success"
+	} else if message == Error {
+		strMessage = "error"
 	}
 
-	return c.Status(statusCode).JSON(UserResponse{Status: statusCode, Outcome: strOutcome, Data: &fiber.Map{"data": data}})
+	return c.Status(statusCode).JSON(UserResponse[T]{Message: strMessage, Data: data})
 }

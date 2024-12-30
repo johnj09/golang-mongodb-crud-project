@@ -29,9 +29,13 @@ func ConnectDB() {
 	}
 
 	fmt.Println("Connected to MongoDB Atlas")
+	dbConnected = true
 }
 
 func GetCollection(collectionName string) *mongo.Collection {
-	if !dbConnected {ConnectDB()}
+	if !dbConnected {
+		ConnectDB()
+		dbConnected = true
+	}
 	return client.Database(EnvDBName()).Collection(collectionName)
 }
